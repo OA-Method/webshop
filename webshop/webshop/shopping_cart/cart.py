@@ -534,8 +534,12 @@ def set_taxes(quotation, cart_settings):
 	quotation.set("taxes", [])
 	#
 	# 	# append taxes
-	quotation.append_taxes_from_master()
-	quotation.append_taxes_from_item_tax_template()
+	# erpnext v16 moved these helpers onto TaxService (see OA-Method/framework#29).
+	from erpnext.accounts.services.taxes import TaxService
+
+	tax_service = TaxService(quotation)
+	tax_service.append_taxes_from_master()
+	tax_service.append_taxes_from_item_tax_template()
 
 
 def get_party(user=None):
