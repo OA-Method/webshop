@@ -45,6 +45,19 @@
 			let path = window.location.pathname + '?' + frappe.utils.get_url_from_dict(query_params);
 			window.location.href = path;
 		});
+		{% if frappe.session.user == "Guest" %}
+		// framework#42: guests can't hit the login-gated cart API — route list
+		// Add-to-Cart to the frictionless guest checkout. Capture phase so this
+		// runs BEFORE the bundled (login-gated) add-to-cart handler.
+		document.addEventListener('click', function (e) {
+			const btn = e.target.closest('.btn-add-to-cart-list, .btn-add-to-cart');
+			if (!btn) return;
+			e.preventDefault();
+			e.stopPropagation();
+			const item = btn.getAttribute('data-item-code');
+			if (item) window.location.href = '/guest_start?item=' + encodeURIComponent(item);
+		}, true);
+		{% endif %}
 	});
 </script>
 

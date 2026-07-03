@@ -38,7 +38,10 @@
 			<div class="page-header-actions-block" data-html-block="header-actions">
 				<p>
 					{% if enabled_checkout and (doc.doctype != "Sales Invoice" or doc.outstanding_amount > 0) %}
-					<a href="/api/method/erpnext.accounts.doctype.payment_request.payment_request.make_payment_request?dn={{ doc.name }}&dt={{ doc.doctype }}&submit_doc=1&order_type=Shopping Cart"
+					{# framework#42: route through client_app.pay_for_order — the portal Customer
+					   role lacks 'create Payment Request' permission, so the direct
+					   make_payment_request link 403s for webshop customers. #}
+					<a href="/api/method/client_app.api.guest_checkout.pay_for_order?order_id={{ doc.name }}&dt={{ doc.doctype }}"
 						class="btn btn-primary btn-sm" id="pay-for-order">
 						{{ _("Pay") }} {{doc.get_formatted("grand_total") }}
 					</a>

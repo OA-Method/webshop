@@ -96,21 +96,31 @@
 			<div class="mb-4 d-flex">
 				<!-- Add to Cart -->
 				{% if product_info.price and (cart_settings.allow_items_not_in_stock or product_info.get("in_stock")) %}
-					<a href="/cart" class="btn btn-light btn-view-in-cart hidden mr-2 font-md"
-						role="button">
-						{{  _("View in Cart") if cart_settings.enable_checkout else _("View in Quote") }}
-					</a>
-					<button
-						data-item-code="{{item_code}}"
-						class="btn btn-primary btn-add-to-cart mr-2 w-30-40"
-					>
-						<span class="mr-2">
-							<svg class="icon icon-md">
-								<use href="#icon-assets"></use>
-							</svg>
-						</span>
-						{{ _("Add to Cart") if cart_settings.enable_checkout else  _("Add to Quote") }}
-					</button>
+					{% if frappe.session.user == "Guest" %}
+						{# framework#42: guests can't call the login-gated cart API — route
+						   Add-to-Cart to the frictionless guest checkout (email -> silent
+						   account + login -> cart). Logged-in users keep the AJAX button. #}
+						<a href="/guest_start?item={{ item_code }}" class="btn btn-primary mr-2 w-30-40"
+							role="button">
+							{{ _("Add to Cart") if cart_settings.enable_checkout else _("Add to Quote") }}
+						</a>
+					{% else %}
+						<a href="/cart" class="btn btn-light btn-view-in-cart hidden mr-2 font-md"
+							role="button">
+							{{  _("View in Cart") if cart_settings.enable_checkout else _("View in Quote") }}
+						</a>
+						<button
+							data-item-code="{{item_code}}"
+							class="btn btn-primary btn-add-to-cart mr-2 w-30-40"
+						>
+							<span class="mr-2">
+								<svg class="icon icon-md">
+									<use href="#icon-assets"></use>
+								</svg>
+							</span>
+							{{ _("Add to Cart") if cart_settings.enable_checkout else  _("Add to Quote") }}
+						</button>
+					{% endif %}
 				{% endif %}
 
 				<!-- Contact Us -->
