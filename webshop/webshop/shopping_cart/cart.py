@@ -156,6 +156,29 @@ def request_for_quotation():
 	return quotation.name
 
 
+def _validate_cart_stock(item_code, qty):
+	"""Reject a cart line quantity that exceeds available stock.
+
+	Mirrors the ``place_order`` stock guard so an over-stock quantity is rejected
+	the moment it is set on the cart, instead of only surfacing at checkout — the
+	customer gets immediate feedback. Skipped when the shop allows out-of-stock
+	sales (``allow_items_not_in_stock``) or the item is not a stock item.
+
+	OA-Method/webshop fork patch — see OA-Method/framework#40. Upstream-owned
+	file: re-verify after any webshop upstream-sync.
+	"""
+	cart_settings = frappe.get_cached_doc("Webshop Settings")
+	if cint(cart_settings.allow_items_not_in_stock):
+		return
+	if not frappe.get_cached_value("Item", item_code, "is_stock_item"):
+		return
+	item_stock = get_web_item_qty_in_stock(item_code, "website_warehouse")
+	if not cint(item_stock.in_stock):
+		throw(_("{0} is not in stock").format(item_code))
+	if flt(qty) > flt(item_stock.stock_qty):
+		throw(_("Only {0} in stock for item {1}").format(item_stock.stock_qty, item_code))
+
+
 @frappe.whitelist()
 def update_cart(item_code, qty, additional_notes=None, with_items=False):
 	quotation = _get_cart_quotation()
@@ -173,6 +196,10 @@ def update_cart(item_code, qty, additional_notes=None, with_items=False):
 		warehouse = frappe.get_cached_value(
 			"Website Item", {"item_code": item_code}, "website_warehouse"
 		)
+
+		# framework#40: reject an over-stock quantity here (mirrors the place_order
+		# guard) so the customer is told on the cart, not only at checkout.
+		_validate_cart_stock(item_code, qty)
 
 		quotation_items = quotation.get("items", {"item_code": item_code})
 		if not quotation_items:
