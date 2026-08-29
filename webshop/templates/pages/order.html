@@ -38,9 +38,18 @@
 			<div class="page-header-actions-block" data-html-block="header-actions">
 				<p>
 					{% if enabled_checkout and (doc.doctype != "Sales Invoice" or doc.outstanding_amount > 0) %}
-					{# framework#42: route through client_app.pay_for_order — the portal Customer
-					   role lacks 'create Payment Request' permission, so the direct
-					   make_payment_request link 403s for webshop customers. #}
+					{# framework#42 (fork patch): route BOTH Sales Order and Sales Invoice through
+					   client_app.api.guest_checkout.pay_for_order. The portal Customer role lacks
+					   'create Payment Request' permission, so erpnext's make_payment_request link
+					   403s for every webshop customer.
+
+					   DELIBERATELY NOT upstream's version, which splits by doctype and sends a
+					   Sales Invoice to `client_app.api.portal.pay_invoice`. PR-Foundry's client_app
+					   and OA Method's client_app are DIFFERENT APPS THAT SHARE A NAME: ours has no
+					   api/portal.py, so that link 404s here, and its Sales Order branch falls back
+					   to the native endpoint that 403s. Our pay_for_order accepts dt in
+					   ("Sales Order", "Sales Invoice") and validates ownership, so one link covers
+					   both. Re-assert this on every webshop upstream-sync. #}
 					<a href="/api/method/client_app.api.guest_checkout.pay_for_order?order_id={{ doc.name }}&dt={{ doc.doctype }}"
 						class="btn btn-primary btn-sm" id="pay-for-order">
 						{{ _("Pay") }} {{doc.get_formatted("grand_total") }}

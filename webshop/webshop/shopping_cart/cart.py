@@ -364,17 +364,28 @@ def guess_territory():
 def decorate_quotation_doc(doc):
 	for d in doc.get("items", []):
 		item_code = d.item_code
+		if not item_code:
+			# Corrupt/legacy line with no item_code — nothing to decorate.
+			continue
 		fields = ["web_item_name", "thumbnail", "website_image", "description", "route"]
 
 		# Variant Item
 		if not frappe.db.exists("Website Item", {"item_code": item_code}):
-			variant_data = frappe.db.get_values(
+			variant_rows = frappe.db.get_values(
 				"Item",
 				filters={"item_code": item_code},
 				fieldname=["variant_of", "item_name", "image"],
 				as_dict=True,
-			)[0]
+			)
+			if not variant_rows:
+				# Item itself deleted — can't resolve a template Website Item.
+				continue
+			variant_data = variant_rows[0]
 			item_code = variant_data.variant_of
+			if not item_code:
+				# Non-variant item whose own Website Item was deleted/unpublished —
+				# leave the raw line untouched instead of crashing.
+				continue
 			fields = fields[1:]
 			d.web_item_name = variant_data.item_name
 
@@ -382,11 +393,12 @@ def decorate_quotation_doc(doc):
 				d.thumbnail = variant_data.image
 				fields = fields[2:]
 
-		d.update(
-			frappe.db.get_value(
-				"Website Item", {"item_code": item_code}, fields, as_dict=True
-			)
+		web_item = frappe.db.get_value(
+			"Website Item", {"item_code": item_code}, fields, as_dict=True
 		)
+		if not web_item:
+			continue
+		d.update(web_item)
 
 		website_warehouse = frappe.get_cached_value(
 			"Website Item", {"item_code": item_code}, "website_warehouse"
