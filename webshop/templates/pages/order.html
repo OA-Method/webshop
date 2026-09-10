@@ -37,7 +37,13 @@
 		<div class="form-column col-sm-6">
 			<div class="page-header-actions-block" data-html-block="header-actions">
 				<p>
-					{% if enabled_checkout and (doc.doctype != "Sales Invoice" or doc.outstanding_amount > 0) %}
+					{# framework#148: gate on the document's OWN paid state. Upstream tested
+					   `doc.doctype != "Sales Invoice" or outstanding > 0`, which short-circuits
+					   to true on every Sales Order — so a fully paid order still offered "Pay",
+					   and the button worked. That is a customer-initiated double charge. #}
+					{% set _unpaid = (doc.outstanding_amount > 0) if doc.doctype == "Sales Invoice"
+					   else ((doc.advance_paid or 0) < doc.grand_total) %}
+					{% if enabled_checkout and _unpaid %}
 					{# framework#42: route through client_app.pay_for_order — the portal Customer
 					   role lacks 'create Payment Request' permission, so the direct
 					   make_payment_request link 403s for webshop customers. #}
