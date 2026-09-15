@@ -90,6 +90,39 @@ def get_billing_addresses(party=None):
 	]
 
 
+def _allow_cart_item_read(quotation):
+	"""Let the cart read its own items' `Item` docs (OA-Method/framework#152).
+
+	LOCAL FORK PATCH — upstream-owned file, re-verify after any webshop sync.
+
+	`erpnext/stock/get_item_details.py` calls `item.check_permission()`
+	unconditionally while erpnext's controller builds the quotation line. The cart
+	runs as the customer, and the `Customer` role has no read on `Item` — upstream
+	ERPNext ships that read to Item Manager / Stock / Sales / Purchase / Maintenance
+	/ Accounts / Manufacturing and deliberately not Customer. So every checkout by a
+	real customer died with `PermissionError`, while every test order placed by a
+	System User succeeded. That is why it stayed invisible until launch.
+
+	Granting `Customer` read on `Item` is NOT the fix: it exposes 132 permlevel-0
+	fields through `/api/resource/Item`, `valuation_rate`, `last_purchase_rate`,
+	`standard_rate` and `item_defaults` among them — cost and margin data to anyone
+	who registers.
+
+	`frappe.get_cached_doc` returns the same object for the rest of the request (its
+	local cache layer), so flagging the docs here is exactly what erpnext reads a
+	moment later. Three properties make this safe, all verified rather than assumed:
+
+	* REQUEST-SCOPED — `frappe.local` is rebuilt per request; the next request gets a
+	  fresh copy from redis with no flag, and `check_permission()` raises again.
+	* ITEM-SCOPED — only the item codes already in this cart, never a blanket bypass.
+	* AUDIT-PRESERVING — nothing switches user, so `owner` and `modified_by` stay the
+	  customer. Elevating to Administrator around the save would have rewritten both.
+	"""
+	for line in quotation.get("items") or []:
+		if line.item_code:
+			frappe.get_cached_doc("Item", line.item_code).flags.ignore_permissions = True
+
+
 @frappe.whitelist()
 def place_order():
 	quotation = _get_cart_quotation()
@@ -97,6 +130,7 @@ def place_order():
 	quotation.company = cart_settings.company
 
 	quotation.flags.ignore_permissions = True
+	_allow_cart_item_read(quotation)  # framework#152
 	quotation.submit()
 
 	if quotation.quotation_to == "Lead" and quotation.party_name:
@@ -479,6 +513,13 @@ def apply_cart_settings(party=None, quotation=None):
 		party = get_party()
 	if not quotation:
 		quotation = _get_cart_quotation(party)
+
+	# framework#152 — must precede set_price_list_and_rate(), which runs erpnext's
+	# set_price_list_and_item_details and is where item.check_permission() fires.
+	# Placed here rather than beside each quotation.save(): every cart path reaches
+	# the item-details fetch through this function, and flagging after the save call
+	# is already too late (measured — the first attempt failed exactly that way).
+	_allow_cart_item_read(quotation)  # framework#152
 
 	cart_settings = frappe.get_cached_doc("Webshop Settings")
 
