@@ -14,10 +14,11 @@
 			</div>
 		</div>
 		<div class="col-xs-8 col-sm-10">
-			{# framework#149: the product NAME, as the cart macro below already does.
-			   Upstream renders item_code here, so the cart said "Reminder Deck" and the
-			   order said "OAM-RD-002" for the same line. #}
-			{{ d.item_name or d.item_code }}
+			{# PR-Foundry/framework#184 (fork marker): show the product NAME, matching
+			   item_name_and_description_cart below and this macro's own no-image fallback
+			   above -- the order page otherwise showed an internal SKU where the cart had
+			   just shown a product name. Re-verify after any webshop upstream-sync. #}
+			{{ d.item_name }}
 			<div class="text-muted small item-description">
 				{{ html2text(d.description) | truncate(140) }}
 			</div>
