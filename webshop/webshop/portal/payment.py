@@ -208,25 +208,13 @@ def pay_for_document(dt: str, dn: str):
 			frappe.ValidationError,
 		)
 
-	# Elevate ONLY after the ownership gate above passed.
-	#
-	# OA-Method/framework#157 (fork patch — re-verify after any webshop upstream-sync).
-	# `frappe.set_user` does not only swap the user: it BLANKS `session.data` and
-	# overwrites `session.sid` with the username. Restoring the user alone leaves the
-	# cached session record without its `user`, so the buyer's NEXT request calls
-	# `validate_ip_address(None)` -> DoesNotExistError, which `LoginManager.__init__`
-	# silently swallows and answers by demoting the request to Guest and rewriting the
-	# cookies. Nothing errors, and THIS response still carries the right sid, so the
-	# damage only shows on the next page load — which in the payment flow is the gateway
-	# hand-off. That is why it read as "the gateway logs me out" for weeks.
-	#
-	# `cart.system_permissions()` in this same app already avoids `set_user` for exactly
-	# this reason (see its docstring); this path still used it.
-	original_user = frappe.session.user
-	session = frappe.local.session
-	saved_sid, saved_data = session.sid, session.data
-	try:
-		frappe.set_user("Administrator")
+	# Elevate ONLY after the ownership gate above passed -- and through system_permissions,
+	# never frappe.set_user: set_user also sets session.sid to the user NAME, so restoring
+	# the user afterwards left the customer's cookie holding their email address, and the
+	# next page logged them out (framework#255).
+	from webshop.webshop.shopping_cart.cart import system_permissions
+
+	with system_permissions():
 		return make_payment_request(
 			dt=dt,
 			dn=dn,
@@ -236,7 +224,3 @@ def pay_for_document(dt: str, dn: str):
 			party=party,
 			recipient_id=payer_email,
 		)
-	finally:
-		frappe.set_user(original_user)
-		# Order matters: set_user() blanked these, so put them back AFTER it runs.
-		session.sid, session.data = saved_sid, saved_data
