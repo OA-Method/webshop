@@ -54,7 +54,7 @@ def _clean_timeline(t) -> dict | None:
 	)
 	try:
 		reached = int(t.get("reached") or 0)
-	except TypeError, ValueError:
+	except TypeError, ValueError, OverflowError:
 		reached = 0
 	reached = max(0, min(reached, len(steps) - 1)) if steps else 0
 	events = t.get("events") if isinstance(t.get("events"), list) else []
