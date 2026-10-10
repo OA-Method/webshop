@@ -115,7 +115,9 @@ webshop.portal_shipping = {
 			".wst-events li{position:relative;padding:0 0 .75rem 1rem}",
 			".wst-events li::before{content:'';position:absolute;left:-6px;top:.35rem;width:10px;height:10px;border-radius:50%;background:var(--primary,#2490ef)}",
 			".wst-time{font-size:.75rem;color:#6c757d}",
-			"@media (max-width:576px){.wst-steps{flex-wrap:wrap}.wst-steps span{flex:0 0 50%}}",
+			// One row at every width: each label must stay under its own segment, so on a phone the
+			// labels shrink and wrap inside their column rather than wrapping the row.
+			"@media (max-width:576px){.wst-steps{font-size:.7rem}.wst-steps span{min-width:0;overflow-wrap:anywhere}}",
 		].join("");
 		document.head.appendChild(style);
 	},
