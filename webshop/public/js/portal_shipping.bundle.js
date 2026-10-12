@@ -92,7 +92,17 @@ webshop.portal_shipping = {
 				note.textContent = panel.note;
 				card.appendChild(note);
 			}
-			(panel.timelines || []).forEach((tl) => webshop.portal_shipping.renderTimeline(card, tl));
+			(panel.timelines || []).forEach((tl) => {
+				// One bad timeline costs that timeline, never the card: an exception here would
+				// otherwise skip host.appendChild below and blank every panel after this one.
+				// renderTimeline appends to the card only as its last step, so a throw leaves no
+				// half-drawn timeline behind.
+				try {
+					webshop.portal_shipping.renderTimeline(card, tl);
+				} catch (e) {
+					console.error("shipping panel: could not draw a timeline", e);
+				}
+			});
 			host.appendChild(card);
 		});
 	},
@@ -140,6 +150,12 @@ webshop.portal_shipping = {
 			head.appendChild(badge);
 		}
 		wrap.appendChild(head);
+		if (tl.estimate) {
+			const estimate = document.createElement("div");
+			estimate.className = "small text-muted";
+			estimate.textContent = tl.estimate;
+			wrap.appendChild(estimate);
+		}
 
 		const steps = tl.steps || [];
 		const bar = document.createElement("div");
@@ -162,7 +178,7 @@ webshop.portal_shipping = {
 		(tl.events || []).forEach((ev) => {
 			const item = document.createElement("li");
 			const label = document.createElement("div");
-			label.textContent = ev.location ? `${ev.label} — ${ev.location}` : ev.label;
+			label.textContent = ev.location ? `${ev.label || ""} — ${ev.location}` : ev.label || "";
 			const time = document.createElement("div");
 			time.className = "wst-time";
 			time.textContent = ev.time || "";
