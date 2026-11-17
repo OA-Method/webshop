@@ -133,7 +133,10 @@ def place_order():
 		# company used to create customer accounts
 		frappe.defaults.set_user_default("company", quotation.company)
 
-	if not (quotation.shipping_address_name or quotation.customer_address):
+	# framework#376 (OA-Method framework#335): the switch lets a buyer pay with name and email only
+	if not cint(cart_settings.allow_orders_without_address) and not (
+		quotation.shipping_address_name or quotation.customer_address
+	):
 		frappe.throw(_("Set Shipping Address or Billing Address"))
 
 	with system_permissions():
