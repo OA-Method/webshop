@@ -20,6 +20,7 @@
   "show_stock_availability",
   "show_quantity_in_website",
   "allow_items_not_in_stock",
+  "allow_orders_without_address",
   "column_break_13",
   "show_apply_coupon_code_in_website",
   "show_contact_us_button",
@@ -172,6 +173,13 @@
    "fieldname": "allow_items_not_in_stock",
    "fieldtype": "Check",
    "label": "Allow items not in stock to be added to cart"
+  },
+  {
+   "default": "0",
+   "description": "The buyer can pay with name and email only. Delivery methods that need an address must ask for it themselves.",
+   "fieldname": "allow_orders_without_address",
+   "fieldtype": "Check",
+   "label": "Allow orders without an address"
   },
   {
    "fieldname": "section_break_18",
