@@ -25,6 +25,8 @@
 </div>
 
 <!-- Billing Address -->
+{# framework#376: a shop that takes orders without an address asks for no billing address #}
+{% if not cart_settings.allow_orders_without_address %}
 <div class="checkbox ml-1 mb-2">
 	<label for="input_same_billing">
 		<input type="checkbox" class="product-filter" id="input_same_billing" checked style="width: 14px !important">
@@ -52,6 +54,7 @@
 		{% endif %}
 	{% endfor %}
 </div>
+{% endif %}
 
 
 <script>
