@@ -94,8 +94,8 @@ doc_events = {
 			"webshop.webshop.crud_events.tax_rule.validate_use_for_cart.execute",
 		],
 	},
-	# One dict only: a second `doc_events =` replaces this one and silently drops every
-	# hook above (framework#294).
+	# Added here, not as a second `doc_events =` further down: a second assignment
+	# replaces this whole dict and silently drops every hook above (framework#343).
 	"Webshop Settings": {
 		# Google's includedRegionCodes takes at most 15. Refused at save so the operator
 		# finds out while looking at the field, rather than through customers in the

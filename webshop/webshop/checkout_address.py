@@ -102,7 +102,12 @@ def _owned_address(name):
 	refused = frappe.PermissionError(_("You cannot edit this address."))
 	if frappe.session.user == "Guest" or not name:
 		raise refused
-	party = get_party()
+	try:
+		party = get_party()
+	except frappe.Redirect:
+		# get_party redirects a user with no Customer when the cart is disabled. A party
+		# that cannot be resolved owns no address, so this is the same refusal (framework#336).
+		raise refused from None
 	if not party or not frappe.db.exists(
 		"Dynamic Link",
 		{
@@ -151,7 +156,7 @@ def update_address(name, doc):
 
 
 @frappe.whitelist()
-def update_cart_address(address_type: str, address_name: str) -> dict:
+def update_cart_address(address_type: str | None = None, address_name: str | None = None) -> dict:
 	"""Set the cart's billing or shipping address, but only to one of the caller's own.
 
 	Replaces ``cart.update_cart_address`` through ``override_whitelisted_methods``
@@ -163,5 +168,8 @@ def update_cart_address(address_type: str, address_name: str) -> dict:
 	"""
 	from webshop.webshop.shopping_cart.cart import update_cart_address as native
 
+	# Both default to None so a request carrying neither (a picker with no card chosen)
+	# reaches the ownership refusal below instead of a TypeError and a bare 500
+	# (PR-Foundry/framework#357).
 	_owned_address(address_name)
 	return native(address_type, address_name)

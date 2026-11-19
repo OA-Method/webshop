@@ -25,6 +25,8 @@
 </div>
 
 <!-- Billing Address -->
+{# framework#376: a shop that takes orders without an address asks for no billing address #}
+{% if not cart_settings.allow_orders_without_address %}
 <div class="checkbox ml-1 mb-2">
 	<label for="input_same_billing">
 		<input type="checkbox" class="product-filter" id="input_same_billing" checked style="width: 14px !important">
@@ -52,6 +54,7 @@
 		{% endif %}
 	{% endfor %}
 </div>
+{% endif %}
 
 
 <script>
@@ -189,6 +192,11 @@ frappe.ready(() => {
 
 <script>
 	frappe.ready(() => {
+		// The picker markup above is rendered once, from the quotation as loaded. An
+		// address changed since then is remembered here so reopening preselects it
+		// rather than the stale original (PR-Foundry/framework#357).
+		const chosen_address = {};
+
 		function get_update_address_dialog() {
 			let d = new frappe.ui.Dialog({
 				title: "Select Address",
@@ -201,6 +209,12 @@ frappe.ready(() => {
 					const $card = d.$wrapper.find('.address-card.active');
 					const address_type = $card.closest('[data-address-type]').attr('data-address-type');
 					const address_name = $card.closest('[data-address-name]').attr('data-address-name');
+					// Without a chosen card both values are undefined and the request carries
+					// no address at all (PR-Foundry/framework#357).
+					if (!address_name) {
+						frappe.msgprint(__("Tap an address to choose it."));
+						return;
+					}
 					frappe.call({
 						type: "POST",
 						method: "webshop.webshop.shopping_cart.cart.update_cart_address",
@@ -212,6 +226,7 @@ frappe.ready(() => {
 						callback: function(r) {
 							d.hide();
 							if (!r.exc) {
+								chosen_address[address_type] = address_name;
 								$(".cart-tax-items").html(r.message.total);
 								shopping_cart.parent.find(
 									`.address-container[data-address-type="${address_type}"]`
@@ -241,7 +256,7 @@ frappe.ready(() => {
 					<div class="row no-gutters" data-fieldname="customer_address">
 						{% for address in billing_addresses %}
 							<div class="mr-3 mb-3 w-100" data-address-name="{{address.name}}" data-address-type="billing"
-								{% if doc.shipping_address_name == address.name %} data-active {% endif %}>
+								{% if doc.customer_address == address.name %} data-active {% endif %}>
 								{% include "templates/includes/cart/address_picker_card.html" %}
 							</div>
 						{% endfor %}
@@ -257,6 +272,15 @@ frappe.ready(() => {
 			$(d.get_field('address_picker').wrapper).html(
 				get_address_template(type)
 			);
+			// Open with the address in use already chosen, as the page's own cards are.
+			if (chosen_address[type]) {
+				const $wrap = d.$wrapper.find('[data-address-name]');
+				$wrap.removeAttr('data-active');
+				$wrap.filter(function () {
+					return $(this).attr('data-address-name') === chosen_address[type];
+				}).attr('data-active', '');
+			}
+			d.$wrapper.find('[data-active] .address-card').addClass('active');
 
 			d.show();
 		});

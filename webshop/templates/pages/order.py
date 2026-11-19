@@ -76,6 +76,12 @@ def get_context(context):
 				)
 			context.available_loyalty_points = int(loyalty_program_details.get("loyalty_points"))
 
+	# PR-Foundry/pos#994 (fork marker). A recipe sale carries zero-priced component rows (cup, lid,
+	# oat milk) for the books; the customer must not see them as free extras. Filtered on the
+	# in-memory document used for rendering only (never saved), and after the pay/loyalty reads
+	# above, which keep reading the real document. Generic flag, so webshop need not know pos.
+	context.doc.items = [row for row in context.doc.get("items") or [] if not row.get("rocket_pos_component")]
+
 	# show Make Purchase Invoice button based on permission
 	context.show_make_pi_button = frappe.has_permission("Purchase Invoice", "create")
 

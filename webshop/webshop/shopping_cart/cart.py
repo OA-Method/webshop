@@ -9,7 +9,7 @@ from erpnext.accounts.utils import get_account_name
 from frappe import _, throw
 from frappe.contacts.doctype.address.address import get_address_display
 from frappe.contacts.doctype.contact.contact import get_contact_name
-from frappe.utils import cint, cstr, flt, get_fullname
+from frappe.utils import cint, cstr, flt, get_fullname, getdate, nowdate
 from frappe.utils.nestedset import get_root_of
 
 from webshop.webshop.doctype.webshop_settings.webshop_settings import (
@@ -133,7 +133,7 @@ def place_order():
 		# company used to create customer accounts
 		frappe.defaults.set_user_default("company", quotation.company)
 
-	# framework#335: the switch lets a buyer pay with name and email only
+	# framework#376 (OA-Method framework#335): the switch lets a buyer pay with name and email only
 	if not cint(cart_settings.allow_orders_without_address) and not (
 		quotation.shipping_address_name or quotation.customer_address
 	):
@@ -504,6 +504,16 @@ def apply_cart_settings(party=None, quotation=None):
 		quotation = _get_cart_quotation(party)
 
 	cart_settings = frappe.get_cached_doc("Webshop Settings")
+
+	# A cart is priced as of today, not the day it was created: prices are looked up by
+	# transaction_date, so an older date hides every price that starts later and the
+	# line reads 0 (PR-Foundry/framework#358).
+	quotation.transaction_date = nowdate()
+	if quotation.valid_till and getdate(quotation.valid_till) < getdate(quotation.transaction_date):
+		quotation.valid_till = None
+	# The saved schedule is due on the old date and is only rebuilt when empty; every
+	# cart write saves after this, not only update_cart.
+	quotation.payment_schedule = []
 
 	with system_permissions():
 		set_price_list_and_rate(quotation, cart_settings)
